@@ -4,7 +4,6 @@ import numpy as np
 import pandas as pd
 import os
 from dateutil.relativedelta import relativedelta
-from feature_engineering import transform_quarter, transform_storey_range
 from sklearn.compose import ColumnTransformer
 from sklearn.impute import SimpleImputer
 from sklearn.linear_model import LinearRegression
@@ -12,19 +11,6 @@ from sklearn.metrics import mean_absolute_error, r2_score
 from sklearn.model_selection import train_test_split
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import OneHotEncoder
-
-def preprocess_features(data):
-    data['datetime'] = pd.to_datetime(data['month'])
-    data['quarter'] = transform_quarter(data['datetime'])
-    data['flat_type'] = data['flat_type'].replace({
-        'MULTI GENERATION': 'MULTI GENERATION',
-        'MULTI-GENERATION': 'MULTI GENERATION',
-    })
-    data['flat_model'] = data['flat_model'].str.upper()
-    data['new_storey_range'] = transform_storey_range(data['storey_range'])
-    data = data.drop_duplicates()
-    data = data[data['datetime']>='2009-01-01'] # only want to train on records from 2009-01-01 onwards
-    return data
 
 def train_pipeline(X_train, y_train, onehot_feats):
     y_train_log = np.log(y_train)
@@ -43,7 +29,7 @@ def train_pipeline(X_train, y_train, onehot_feats):
     return pipeline
 
 def predict_pipeline(pipeline, X):
-    y_pred = pipeline.predict(X)
+    y_pred = pipeline.predict(X)[:, 0]
     y_pred = np.exp(y_pred)
     return y_pred
 
@@ -58,7 +44,17 @@ def main(raw_dir, model_dir):
     data = pd.read_csv(data_path)
 
     logger.info(f'preprocessing dataset...')
-    data = preprocess_features(data)
+    from feature_engineering import transform_quarter, transform_storey_range
+    data['datetime'] = pd.to_datetime(data['month'])
+    data['quarter'] = transform_quarter(data['datetime'])
+    data['flat_type'] = data['flat_type'].replace({
+        'MULTI GENERATION': 'MULTI GENERATION',
+        'MULTI-GENERATION': 'MULTI GENERATION',
+    })
+    data['flat_model'] = data['flat_model'].str.upper()
+    data['new_storey_range'] = transform_storey_range(data['storey_range'])
+    data = data.drop_duplicates()
+    data = data[data['datetime']>='2009-01-01'] # only want to train on records from 2009-01-01 onwards
 
     logger.info(f'train test split...')
     cat_feats = ['quarter', 'town', 'flat_type', 'flat_model', 'new_storey_range']
