@@ -3,4 +3,3 @@ FROM jupyter/tensorflow-notebook:latest
 RUN pip install click
 RUN pip install pandas-profiling
 RUN pip install pytest
-RUN pip install zipfile
